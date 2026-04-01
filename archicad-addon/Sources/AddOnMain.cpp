@@ -270,6 +270,10 @@ GSErrCode Initialize (void)
             elementCommands, "1.0.7",
             "Sets the classifications of elements. In order to set the classification of an element to unclassified, omit the classificationItemId field. It works for subelements of hierarchal elements also."
         );
+        err |= RegisterCommand<CreateWallsCommand> (
+            elementCommands, "1.0.3",
+            "Creates Wall elements based on the given parameters."
+        );
         err |= RegisterCommand<CreateColumnsCommand> (
             elementCommands, "1.0.3",
             "Creates Column elements based on the given parameters."

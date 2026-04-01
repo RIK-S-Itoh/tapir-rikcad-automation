@@ -97,6 +97,88 @@ GS::ObjectState	CreateElementsCommandBase::Execute (const GS::ObjectState& param
     return response;
 }
 
+CreateWallsCommand::CreateWallsCommand () :
+    CreateElementsCommandBase ("CreateWalls", API_WallID, "wallsData")
+{
+}
+
+GS::Optional<GS::UniString> CreateWallsCommand::GetInputParametersSchema () const
+{
+    return R"({
+        "type": "object",
+        "properties": {
+            "wallsData": {
+                "type": "array",
+                "description": "Array of data to create Walls.",
+                "items": {
+                    "type": "object",
+                    "description": "The parameters of the new Wall.",
+                    "properties": {
+                        "startPoint": {
+                            "$ref": "#/Coordinate3D",
+                            "description": "3D coordinate of the wall start. The Z value indicates the elevation."
+                        },
+                        "endPoint": {
+                            "$ref": "#/Coordinate2D",
+                            "description": "2D coordinate of the wall end."
+                        },
+                        "height": {
+                            "type": "number",
+                            "description": "The height of the wall."
+                        },
+                        "thickness": {
+                            "type": "number",
+                            "description": "The thickness of the wall."
+                        }
+                    },
+                    "additionalProperties": false,
+                    "required" : [
+                        "startPoint",
+                        "endPoint"
+                    ]
+                }
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "wallsData"
+        ]
+    })";
+}
+
+GS::Optional<GS::ObjectState> CreateWallsCommand::SetTypeSpecificParameters (API_Element& element, API_ElementMemo&, const Stories& stories, const GS::ObjectState& parameters) const
+{
+    GS::ObjectState startPoint;
+    parameters.Get ("startPoint", startPoint);
+    API_Coord3D startCoordinate = Get3DCoordinateFromObjectState (startPoint);
+
+    GS::ObjectState endPoint;
+    parameters.Get ("endPoint", endPoint);
+    API_Coord endCoordinate = Get2DCoordinateFromObjectState (endPoint);
+
+    element.wall.type = APIWtyp_Normal;
+    element.wall.begC.x = startCoordinate.x;
+    element.wall.begC.y = startCoordinate.y;
+    element.wall.endC.x = endCoordinate.x;
+    element.wall.endC.y = endCoordinate.y;
+
+    const auto floorIndexAndOffset = GetFloorIndexAndOffset (startCoordinate.z, stories);
+    element.header.floorInd = floorIndexAndOffset.first;
+    element.wall.bottomOffset = floorIndexAndOffset.second;
+
+    double height;
+    if (parameters.Get ("height", height)) {
+        element.wall.height = height;
+    }
+
+    double thickness;
+    if (parameters.Get ("thickness", thickness)) {
+        element.wall.thickness = thickness;
+    }
+
+    return {};
+}
+
 CreateColumnsCommand::CreateColumnsCommand () :
     CreateElementsCommandBase ("CreateColumns", API_ColumnID, "columnsData")
 {
