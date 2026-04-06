@@ -106,6 +106,162 @@ GS::ObjectState GetAttributesByTypeCommand::Execute (const GS::ObjectState& para
     return response;
 }
 
+GetSurfacesCommand::GetSurfacesCommand () :
+    CommandBase (CommonSchema::Used)
+{
+}
+
+GS::String GetSurfacesCommand::GetName () const
+{
+    return "GetSurfaces";
+}
+
+GS::Optional<GS::UniString> GetSurfacesCommand::GetInputParametersSchema () const
+{
+    return R"({
+        "type": "object",
+        "properties": {
+            "nameFilter": {
+                "type": "array",
+                "description": "List of surface names to retrieve. If omitted, returns basic info (id, index, name) for all surfaces.",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "additionalProperties": false,
+        "required": []
+    })";
+}
+
+GS::Optional<GS::UniString> GetSurfacesCommand::GetResponseSchema () const
+{
+    return R"({
+        "type": "object",
+        "properties": {
+            "surfaces": {
+                "type": "array",
+                "description": "List of surface (material) attributes.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "attributeId": {
+                            "$ref": "#/AttributeId"
+                        },
+                        "index": {
+                            "type": "integer",
+                            "description": "Attribute index."
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the surface."
+                        },
+                        "ambientReflection": {
+                            "type": "integer",
+                            "description": "Ambient reflection [0..100]."
+                        },
+                        "diffuseReflection": {
+                            "type": "integer",
+                            "description": "Diffuse reflection [0..100]."
+                        },
+                        "specularReflection": {
+                            "type": "integer",
+                            "description": "Specular reflection [0..100]."
+                        },
+                        "transparency": {
+                            "type": "integer",
+                            "description": "Transparency [0..100]."
+                        },
+                        "surfaceColor": {
+                            "$ref": "#/RGBColor"
+                        },
+                        "specularColor": {
+                            "$ref": "#/RGBColor"
+                        },
+                        "emissionColor": {
+                            "$ref": "#/RGBColor"
+                        },
+                        "textureName": {
+                            "type": "string",
+                            "description": "Texture file name."
+                        },
+                        "textureFilePath": {
+                            "type": "string",
+                            "description": "Full path to the texture file, if available."
+                        }
+                    },
+                    "additionalProperties": false,
+                    "required": ["attributeId", "index", "name"]
+                }
+            }
+        },
+        "additionalProperties": false,
+        "required": ["surfaces"]
+    })";
+}
+
+GS::ObjectState GetSurfacesCommand::Execute (const GS::ObjectState& parameters, GS::ProcessControl& /*processControl*/) const
+{
+    GS::Array<API_Attribute> attrs;
+    ACAPI_Attribute_GetAttributesByType (API_MaterialID, attrs);
+
+    // Build name filter list (empty = no filter)
+    GS::Array<GS::UniString> nameFilter;
+    parameters.Get ("nameFilter", nameFilter);
+    const bool useFilter = !nameFilter.IsEmpty ();
+
+    GS::ObjectState response;
+    const auto& listAdder = response.AddList<GS::ObjectState> ("surfaces");
+
+    for (API_Attribute& attr : attrs) {
+        const GS::UniString name (attr.header.name);
+
+        if (useFilter) {
+            if (!nameFilter.Contains (name)) {
+                DisposeAttribute (attr);
+                continue;
+            }
+            // Full details for filtered results
+            GS::ObjectState surface;
+            surface.Add ("attributeId", CreateGuidObjectState (attr.header.guid));
+            surface.Add ("index", GetAttributeIndex (attr.header.index));
+            surface.Add ("name", name);
+            surface.Add ("ambientReflection",  (int)attr.material.ambientPc);
+            surface.Add ("diffuseReflection",  (int)attr.material.diffusePc);
+            surface.Add ("specularReflection", (int)attr.material.specularPc);
+            surface.Add ("transparency",       (int)attr.material.transpPc);
+            surface.Add ("surfaceColor",  GS::ObjectState ("red",   attr.material.surfaceRGB.f_red,
+                                                            "green", attr.material.surfaceRGB.f_green,
+                                                            "blue",  attr.material.surfaceRGB.f_blue));
+            surface.Add ("specularColor", GS::ObjectState ("red",   attr.material.specularRGB.f_red,
+                                                            "green", attr.material.specularRGB.f_green,
+                                                            "blue",  attr.material.specularRGB.f_blue));
+            surface.Add ("emissionColor", GS::ObjectState ("red",   attr.material.emissionRGB.f_red,
+                                                            "green", attr.material.emissionRGB.f_green,
+                                                            "blue",  attr.material.emissionRGB.f_blue));
+            GS::UniString texName (attr.material.texture.texName);
+            if (!texName.IsEmpty ()) {
+                surface.Add ("textureName", texName);
+            }
+            if (attr.material.texture.fileLoc != nullptr) {
+                surface.Add ("textureFilePath", attr.material.texture.fileLoc->ToDisplayText ());
+            }
+            listAdder (surface);
+        } else {
+            // Basic info only (id, index, name) to keep response small
+            GS::ObjectState surface;
+            surface.Add ("attributeId", CreateGuidObjectState (attr.header.guid));
+            surface.Add ("index", GetAttributeIndex (attr.header.index));
+            surface.Add ("name", name);
+            listAdder (surface);
+        }
+
+        DisposeAttribute (attr);
+    }
+
+    return response;
+}
+
 GetBuildingMaterialPhysicalPropertiesCommand::GetBuildingMaterialPhysicalPropertiesCommand () :
     CommandBase (CommonSchema::Used)
 {

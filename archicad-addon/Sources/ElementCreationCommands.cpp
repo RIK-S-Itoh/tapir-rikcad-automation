@@ -129,6 +129,18 @@ GS::Optional<GS::UniString> CreateWallsCommand::GetInputParametersSchema () cons
                         "thickness": {
                             "type": "number",
                             "description": "The thickness of the wall."
+                        },
+                        "outsideSurfaceIndex": {
+                            "type": "integer",
+                            "description": "The attribute index of the surface on the reference (outside) side of the wall."
+                        },
+                        "insideSurfaceIndex": {
+                            "type": "integer",
+                            "description": "The attribute index of the surface on the opposite (inside) side of the wall."
+                        },
+                        "edgeSurfaceIndex": {
+                            "type": "integer",
+                            "description": "The attribute index of the surface on the side (edge) of the wall."
                         }
                     },
                     "additionalProperties": false,
@@ -174,6 +186,21 @@ GS::Optional<GS::ObjectState> CreateWallsCommand::SetTypeSpecificParameters (API
     double thickness;
     if (parameters.Get ("thickness", thickness)) {
         element.wall.thickness = thickness;
+    }
+
+    Int32 outsideSurfaceIndex;
+    if (parameters.Get ("outsideSurfaceIndex", outsideSurfaceIndex)) {
+        element.wall.refMat.value = ACAPI_CreateAttributeIndex(outsideSurfaceIndex);
+    }
+
+    Int32 insideSurfaceIndex;
+    if (parameters.Get ("insideSurfaceIndex", insideSurfaceIndex)) {
+        element.wall.oppMat.value = ACAPI_CreateAttributeIndex(insideSurfaceIndex);
+    }
+
+    Int32 edgeSurfaceIndex;
+    if (parameters.Get ("edgeSurfaceIndex", edgeSurfaceIndex)) {
+        element.wall.sidMat.value = ACAPI_CreateAttributeIndex(edgeSurfaceIndex);
     }
 
     return {};

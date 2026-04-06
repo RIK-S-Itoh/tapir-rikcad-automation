@@ -405,6 +405,10 @@ GSErrCode Initialize (void)
             attributeCommands, "1.0.2",
             "Creates or overwrites Composite attributes based on the given parameters."
         );
+        err |= RegisterCommand<GetSurfacesCommand> (
+            attributeCommands, "1.2.2",
+            "Returns the details of every Surface attribute."
+        );
         err |= RegisterCommand<CreateSurfacesCommand> (
             attributeCommands, "1.2.2",
             "Creates or overwrites Surface attributes based on the given parameters."
@@ -433,6 +437,10 @@ GSErrCode Initialize (void)
         err |= RegisterCommand<AddFilesToEmbeddedLibraryCommand> (
             libraryCommands, "1.2.2",
             "Adds the given files into the embedded library."
+        );
+        err |= RegisterCommand<GetLibraryPartsCommand> (
+            libraryCommands, "1.0.0",
+            "Gets the list of library parts from loaded libraries."
         );
         AddCommandGroup (libraryCommands);
     }
