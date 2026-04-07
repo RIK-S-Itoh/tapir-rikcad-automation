@@ -1,4 +1,4 @@
-#include "AttributeCommands.hpp"
+﻿#include "AttributeCommands.hpp"
 #include "MigrationHelper.hpp"
 
 static bool GetAttributeIndexFromAttributeId (const GS::ObjectState& attributeId, API_AttrTypeID attributeType, API_AttributeIndex& attributeIndex)
@@ -200,6 +200,169 @@ GS::Optional<GS::UniString> GetSurfacesCommand::GetResponseSchema () const
     })";
 }
 
+// Normalize a string for kana-insensitive matching:
+//   - Full-width ASCII (U+FF01–U+FF5E) → half-width ASCII
+//   - Full-width space (U+3000) → half-width space
+//   - Half-width katakana (U+FF65–U+FF9D) → full-width katakana,
+//     merging following dakuten (U+FF9E) / handakuten (U+FF9F) into one character
+static GS::UniString NormalizeForKanaSearch (const GS::UniString& input)
+{
+    // Half-width katakana U+FF66–U+FF9D → full-width katakana
+    static const GS::uchar_t hwToFw[] = {
+        0x30F2, // FF66 ｦ → ヲ
+        0x30A1, // FF67 ｧ → ァ
+        0x30A3, // FF68 ｨ → ィ
+        0x30A5, // FF69 ｩ → ゥ
+        0x30A7, // FF6A ｪ → ェ
+        0x30A9, // FF6B ｫ → ォ
+        0x30E3, // FF6C ｬ → ャ
+        0x30E5, // FF6D ｭ → ュ
+        0x30E7, // FF6E ｮ → ョ
+        0x30C3, // FF6F ｯ → ッ
+        0x30FC, // FF70 ｰ → ー
+        0x30A2, // FF71 ｱ → ア
+        0x30A4, // FF72 ｲ → イ
+        0x30A6, // FF73 ｳ → ウ
+        0x30A8, // FF74 ｴ → エ
+        0x30AA, // FF75 ｵ → オ
+        0x30AB, // FF76 ｶ → カ
+        0x30AD, // FF77 ｷ → キ
+        0x30AF, // FF78 ｸ → ク
+        0x30B1, // FF79 ｹ → ケ
+        0x30B3, // FF7A ｺ → コ
+        0x30B5, // FF7B ｻ → サ
+        0x30B7, // FF7C ｼ → シ
+        0x30B9, // FF7D ｽ → ス
+        0x30BB, // FF7E ｾ → セ
+        0x30BD, // FF7F ｿ → ソ
+        0x30BF, // FF80 ﾀ → タ
+        0x30C1, // FF81 ﾁ → チ
+        0x30C4, // FF82 ﾂ → ツ
+        0x30C6, // FF83 ﾃ → テ
+        0x30C8, // FF84 ﾄ → ト
+        0x30CA, // FF85 ﾅ → ナ
+        0x30CB, // FF86 ﾆ → ニ
+        0x30CC, // FF87 ﾇ → ヌ
+        0x30CD, // FF88 ﾈ → ネ
+        0x30CE, // FF89 ﾉ → ノ
+        0x30CF, // FF8A ﾊ → ハ
+        0x30D2, // FF8B ﾋ → ヒ
+        0x30D5, // FF8C ﾌ → フ
+        0x30D8, // FF8D ﾍ → ヘ
+        0x30DB, // FF8E ﾎ → ホ
+        0x30DE, // FF8F ﾏ → マ
+        0x30DF, // FF90 ﾐ → ミ
+        0x30E0, // FF91 ﾑ → ム
+        0x30E1, // FF92 ﾒ → メ
+        0x30E2, // FF93 ﾓ → モ
+        0x30E4, // FF94 ﾔ → ヤ
+        0x30E6, // FF95 ﾕ → ユ
+        0x30E8, // FF96 ﾖ → ヨ
+        0x30E9, // FF97 ﾗ → ラ
+        0x30EA, // FF98 ﾘ → リ
+        0x30EB, // FF99 ﾙ → ル
+        0x30EC, // FF9A ﾚ → レ
+        0x30ED, // FF9B ﾛ → ロ
+        0x30EF, // FF9C ﾜ → ワ
+        0x30F3, // FF9D ﾝ → ン
+    };
+
+    const USize len = input.GetLength ();
+    GS::UniString result;
+
+    auto appendChar = [&result] (GS::uchar_t c) {
+        GS::uchar_t buf[2] = { c, 0 };
+        result += GS::UniString (buf);
+    };
+
+    for (USize i = 0; i < len; ++i) {
+        const GS::uchar_t ch = input[i];
+        const GS::uchar_t ch2 = input[i + 1];
+
+        // Full-width ASCII (！–～, U+FF01–U+FF5E) → half-width ASCII
+        if (ch >= 0xFF01 && ch <= 0xFF5E) {
+            appendChar (static_cast<GS::uchar_t> (ch - 0xFF01 + 0x0021));
+            continue;
+        }
+
+        // Full-width space (U+3000) → half-width space
+        if (ch == 0x3000) {
+            appendChar (0x0020);
+            continue;
+        }
+
+        // Half-width katakana middle dot (U+FF65) → ・ (U+30FB)
+        if (ch == 0xFF65) {
+            appendChar (0x30FB);
+            continue;
+        }
+
+        // Half-width katakana (U+FF66–U+FF9D) → full-width katakana
+        if (ch >= 0xFF66 && ch <= 0xFF9D) {
+            GS::uchar_t fw = hwToFw[ch - 0xFF66];
+
+            // Merge following dakuten (U+FF9E) into voiced consonant
+            if (i + 1 < len && ch2 == 0xFF9E) {
+                GS::uchar_t voiced = 0;
+                switch (fw) {
+                    case 0x30A6: voiced = 0x30F4; break; // ウ → ヴ
+                    case 0x30AB: voiced = 0x30AC; break; // カ → ガ
+                    case 0x30AD: voiced = 0x30AE; break; // キ → ギ
+                    case 0x30AF: voiced = 0x30B0; break; // ク → グ
+                    case 0x30B1: voiced = 0x30B2; break; // ケ → ゲ
+                    case 0x30B3: voiced = 0x30B4; break; // コ → ゴ
+                    case 0x30B5: voiced = 0x30B6; break; // サ → ザ
+                    case 0x30B7: voiced = 0x30B8; break; // シ → ジ
+                    case 0x30B9: voiced = 0x30BA; break; // ス → ズ
+                    case 0x30BB: voiced = 0x30BC; break; // セ → ゼ
+                    case 0x30BD: voiced = 0x30BE; break; // ソ → ゾ
+                    case 0x30BF: voiced = 0x30C0; break; // タ → ダ
+                    case 0x30C1: voiced = 0x30C2; break; // チ → ヂ
+                    case 0x30C4: voiced = 0x30C5; break; // ツ → ヅ
+                    case 0x30C6: voiced = 0x30C7; break; // テ → デ
+                    case 0x30C8: voiced = 0x30C9; break; // ト → ド
+                    case 0x30CF: voiced = 0x30D0; break; // ハ → バ
+                    case 0x30D2: voiced = 0x30D3; break; // ヒ → ビ
+                    case 0x30D5: voiced = 0x30D6; break; // フ → ブ
+                    case 0x30D8: voiced = 0x30D9; break; // ヘ → ベ
+                    case 0x30DB: voiced = 0x30DC; break; // ホ → ボ
+                    default: break;
+                }
+                if (voiced != 0) {
+                    appendChar (voiced);
+                    ++i; // consume dakuten
+                    continue;
+                }
+            }
+
+            // Merge following handakuten (U+FF9F) into semi-voiced consonant
+            if (i + 1 < len && ch2 == 0xFF9F) {
+                GS::uchar_t sv = 0;
+                switch (fw) {
+                    case 0x30CF: sv = 0x30D1; break; // ハ → パ
+                    case 0x30D2: sv = 0x30D4; break; // ヒ → ピ
+                    case 0x30D5: sv = 0x30D7; break; // フ → プ
+                    case 0x30D8: sv = 0x30DA; break; // ヘ → ペ
+                    case 0x30DB: sv = 0x30DD; break; // ホ → ポ
+                    default: break;
+                }
+                if (sv != 0) {
+                    appendChar (sv);
+                    ++i; // consume handakuten
+                    continue;
+                }
+            }
+
+            appendChar (fw);
+            continue;
+        }
+
+        appendChar (ch);
+    }
+
+    return result;
+}
+
 GS::ObjectState GetSurfacesCommand::Execute (const GS::ObjectState& parameters, GS::ProcessControl& /*processControl*/) const
 {
     GS::Array<API_Attribute> attrs;
@@ -210,6 +373,12 @@ GS::ObjectState GetSurfacesCommand::Execute (const GS::ObjectState& parameters, 
     parameters.Get ("nameFilter", nameFilter);
     const bool useFilter = !nameFilter.IsEmpty ();
 
+    // Pre-normalize filter names for kana-insensitive matching
+    GS::Array<GS::UniString> normalizedFilter;
+    for (const GS::UniString& n : nameFilter) {
+        normalizedFilter.Push (NormalizeForKanaSearch (n));
+    }
+
     GS::ObjectState response;
     const auto& listAdder = response.AddList<GS::ObjectState> ("surfaces");
 
@@ -217,7 +386,7 @@ GS::ObjectState GetSurfacesCommand::Execute (const GS::ObjectState& parameters, 
         const GS::UniString name (attr.header.name);
 
         if (useFilter) {
-            if (!nameFilter.Contains (name)) {
+            if (!normalizedFilter.Contains (NormalizeForKanaSearch (name))) {
                 DisposeAttribute (attr);
                 continue;
             }

@@ -1,4 +1,4 @@
-#include "LibraryCommands.hpp"
+﻿#include "LibraryCommands.hpp"
 #include "ObjectState.hpp"
 #include "MigrationHelper.hpp"
 #include "Folder.hpp"
@@ -267,6 +267,27 @@ GS::ObjectState GetLibrariesCommand::Execute (const GS::ObjectState& /*parameter
     return response;
 }
 
+// NFKC normalization: half-width katakana → full-width, full-width ASCII → half-width, etc.
+static GS::UniString NormalizeKana (const GS::UniString& str)
+{
+    if (str.IsEmpty ()) return str;
+
+    GS::UniChar::Layout* srcBuf = str.CopyUStr ();
+    USize srcLen = str.GetLength ();
+
+    GS::UniChar::Layout* nfkcBuf = nullptr;
+    USize nfkcLen = 0;
+    GS::UniChar::ConvertToCompatibilityComposed (srcBuf, srcLen, &nfkcBuf, &nfkcLen);
+    delete[] srcBuf;
+
+    if (nfkcBuf == nullptr) return str;
+
+    GS::UniString result (nfkcBuf, nfkcLen);
+    delete[] nfkcBuf;
+
+    return result;
+}
+
 static GS::HashSet<GS::UniString> CollectMatchingFileNamesFromXmlCatalogs (
     const IO::Location&   libraryLoc,
     const GS::UniString&  lowerNameFilter)
@@ -322,8 +343,8 @@ static GS::HashSet<GS::UniString> CollectMatchingFileNamesFromXmlCatalogs (
                 if (kwClose != MaxUIndex) {
                     UIndex kwStart = kwOpen + keywordsOpen.GetLength ();
                     GS::UniString keywords = content (kwStart, kwClose - kwStart);
-                    if (keywords.ToLowerCase ().Contains (lowerNameFilter)) {
-                        result.Add (fileName.ToLowerCase ());
+                    if (NormalizeKana (keywords).ToLowerCase ().Contains (lowerNameFilter)) {
+                        result.Add (NormalizeKana (fileName).ToLowerCase ());
                     }
                 }
             }
@@ -472,7 +493,7 @@ GS::ObjectState GetLibraryPartsCommand::Execute (const GS::ObjectState& paramete
     GS::UniString lowerNameFilter;
     GS::HashSet<GS::UniString> xmlMatchingFileNames;
     if (hasNameFilter) {
-        lowerNameFilter = nameFilter.ToLowerCase ();
+        lowerNameFilter = NormalizeKana (nameFilter).ToLowerCase ();
 
         GS::Array<API_LibraryInfo> libs;
         ACAPI_LibraryManagement_GetLibraries (&libs);
@@ -512,12 +533,12 @@ GS::ObjectState GetLibraryPartsCommand::Execute (const GS::ObjectState& paramete
         }
 
         if (hasNameFilter) {
-            bool matches = GS::UniString (lp.docu_UName).ToLowerCase ().Contains (lowerNameFilter);
+            bool matches = NormalizeKana (GS::UniString (lp.docu_UName)).ToLowerCase ().Contains (lowerNameFilter);
 
             if (!matches && lp.location != nullptr) {
                 IO::Name fileName;
                 if (lp.location->GetLastLocalName (&fileName) == NoError) {
-                    GS::UniString lowerFileName = fileName.ToString ().ToLowerCase ();
+                    GS::UniString lowerFileName = NormalizeKana (fileName.ToString ()).ToLowerCase ();
                     if (lowerFileName.Contains (lowerNameFilter) || xmlMatchingFileNames.Contains (lowerFileName)) {
                         matches = true;
                     }

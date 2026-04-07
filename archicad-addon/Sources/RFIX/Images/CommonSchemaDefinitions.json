@@ -3354,6 +3354,70 @@
             "endThickness": {
                 "type": "number",
                 "description": "Thickness at the end in case of trapezoid wall"
+            },
+            "buildingMaterial": {
+                "type": "integer",
+                "description": "Building material attribute index (used when structure type is Basic)"
+            },
+            "refMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the reference side"
+            },
+            "oppMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the opposite side"
+            },
+            "sidMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the side surfaces"
+            }
+        },
+        "additionalProperties": false,
+        "required": []
+    },
+    "SlabSettings": {
+        "type": "object",
+        "description": "Settings for modifying a slab.",
+        "properties": {
+            "buildingMaterial": {
+                "type": "integer",
+                "description": "Building material attribute index (used when structure type is Basic)"
+            },
+            "topMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the top surface"
+            },
+            "sideMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the side surfaces"
+            },
+            "botMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the bottom surface"
+            }
+        },
+        "additionalProperties": false,
+        "required": []
+    },
+    "MeshSettings": {
+        "type": "object",
+        "description": "Settings for modifying a mesh.",
+        "properties": {
+            "buildingMaterial": {
+                "type": "integer",
+                "description": "Building material attribute index"
+            },
+            "topMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the top surface"
+            },
+            "sideMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the side surfaces"
+            },
+            "botMat": {
+                "type": "integer",
+                "description": "Surface material attribute index for the bottom surface"
             }
         },
         "additionalProperties": false,
@@ -3365,6 +3429,12 @@
         "oneOf": [
             {
                 "$ref": "#/WallSettings"
+            },
+            {
+                "$ref": "#/SlabSettings"
+            },
+            {
+                "$ref": "#/MeshSettings"
             }
         ]
     },

@@ -845,6 +845,71 @@ GS::ObjectState SetDetailsOfElementsCommand::Execute (const GS::ObjectState& par
                             default:
                             break;
                         }
+
+                        Int32 buildingMatIndex;
+                        if (typeSpecificDetails->Get ("buildingMaterial", buildingMatIndex)) {
+                            elem.wall.buildingMaterial = ACAPI_CreateAttributeIndex (buildingMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_WallType, buildingMaterial);
+                        }
+                        Int32 refMatIndex;
+                        if (typeSpecificDetails->Get ("refMat", refMatIndex)) {
+                            elem.wall.refMat = ACAPI_CreateAttributeIndex (refMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_WallType, refMat);
+                        }
+                        Int32 oppMatIndex;
+                        if (typeSpecificDetails->Get ("oppMat", oppMatIndex)) {
+                            elem.wall.oppMat = ACAPI_CreateAttributeIndex (oppMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_WallType, oppMat);
+                        }
+                        Int32 sidMatIndex;
+                        if (typeSpecificDetails->Get ("sidMat", sidMatIndex)) {
+                            elem.wall.sidMat = ACAPI_CreateAttributeIndex (sidMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_WallType, sidMat);
+                        }
+                    } break;
+                    case API_SlabID: {
+                        Int32 buildingMatIndex;
+                        if (typeSpecificDetails->Get ("buildingMaterial", buildingMatIndex)) {
+                            elem.slab.buildingMaterial = ACAPI_CreateAttributeIndex (buildingMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_SlabType, buildingMaterial);
+                        }
+                        Int32 topMatIndex;
+                        if (typeSpecificDetails->Get ("topMat", topMatIndex)) {
+                            elem.slab.topMat = ACAPI_CreateAttributeIndex (topMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_SlabType, topMat);
+                        }
+                        Int32 sideMatIndex;
+                        if (typeSpecificDetails->Get ("sideMat", sideMatIndex)) {
+                            elem.slab.sideMat = ACAPI_CreateAttributeIndex (sideMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_SlabType, sideMat);
+                        }
+                        Int32 botMatIndex;
+                        if (typeSpecificDetails->Get ("botMat", botMatIndex)) {
+                            elem.slab.botMat = ACAPI_CreateAttributeIndex (botMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_SlabType, botMat);
+                        }
+                    } break;
+                    case API_MeshID: {
+                        Int32 buildingMatIndex;
+                        if (typeSpecificDetails->Get ("buildingMaterial", buildingMatIndex)) {
+                            elem.mesh.buildingMaterial = ACAPI_CreateAttributeIndex (buildingMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_MeshType, buildingMaterial);
+                        }
+                        Int32 topMatIndex;
+                        if (typeSpecificDetails->Get ("topMat", topMatIndex)) {
+                            elem.mesh.topMat = ACAPI_CreateAttributeIndex (topMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_MeshType, topMat);
+                        }
+                        Int32 sideMatIndex;
+                        if (typeSpecificDetails->Get ("sideMat", sideMatIndex)) {
+                            elem.mesh.sideMat = ACAPI_CreateAttributeIndex (sideMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_MeshType, sideMat);
+                        }
+                        Int32 botMatIndex;
+                        if (typeSpecificDetails->Get ("botMat", botMatIndex)) {
+                            elem.mesh.botMat = ACAPI_CreateAttributeIndex (botMatIndex);
+                            ACAPI_ELEMENT_MASK_SET (mask, API_MeshType, botMat);
+                        }
                     } break;
                     default:
                     break;
