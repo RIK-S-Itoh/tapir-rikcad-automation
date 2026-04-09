@@ -83,6 +83,7 @@ private:
     static std::unique_ptr<EventQueue> queuedEvents;
 
     static GS::Thread messageSenderThread;
+    static bool messageSenderThreadStarted;
 };
 
 class RemoveElementNotificationClientCommand : public CommandBase

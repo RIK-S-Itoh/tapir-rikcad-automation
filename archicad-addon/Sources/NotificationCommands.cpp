@@ -72,6 +72,7 @@ bool AddElementNotificationClientCommand::hasClientToNotifyOnModification = fals
 bool AddElementNotificationClientCommand::hasClientToNotifyOnReservationChanges = false;
 std::unique_ptr<AddElementNotificationClientCommand::EventQueue> AddElementNotificationClientCommand::queuedEvents;
 GS::Thread AddElementNotificationClientCommand::messageSenderThread;
+bool AddElementNotificationClientCommand::messageSenderThreadStarted = false;
 
 void AddElementNotificationClientCommand::Client::Send(HTTP::Client::Request& request, const GS::UniString* body)
 {
@@ -95,7 +96,10 @@ AddElementNotificationClientCommand::AddElementNotificationClientCommand () :
 
 AddElementNotificationClientCommand::~AddElementNotificationClientCommand ()
 {
-    messageSenderThread.Join ();
+    if (messageSenderThreadStarted) {
+        messageSenderThread.Join ();
+        messageSenderThreadStarted = false;
+    }
 }
 
 GS::String AddElementNotificationClientCommand::GetName () const
@@ -233,6 +237,7 @@ AddElementNotificationClientCommand::SendQueuedEventsToNotificationClient ()
 
     messageSenderThread = GS::Thread (new MessageSenderTask (*queuedEvents), "ElementNotifications");
     messageSenderThread.Start ();
+    messageSenderThreadStarted = true;
     queuedEvents.reset ();
 }
 
